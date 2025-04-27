@@ -16,6 +16,7 @@ class SnakeGame:
         self.food = self._generate_food()
         self.score = 0
         self.steps = 0
+        self.reward = 0
         self.game_over = False
         self.valid_moves = {
             (1, 0): [(1, 0), (0, 1), (0, -1)],  # Derecha
@@ -103,7 +104,7 @@ class SnakeGame:
         Devuelve: (game_over, reward)
         """
         if self.game_over:
-            return True, 0
+            return True, self.reward
 
         self.steps += 1
 
@@ -129,21 +130,22 @@ class SnakeGame:
                 new_head[1] < 0 or new_head[1] >= height or
                 self.steps >= Config.Config.MAX_STEPS):
             self.game_over = True
-            return True, -10  # Penalización por perder
+            self.score-=0.05
+            return True,self.reward   # Penalización por perder
 
         # Mover la serpiente
         self.snake.insert(0, new_head)
 
         # Verificar si comió comida
-        reward = 0
         if new_head == self.food:
-            self.score += 10
-            reward = 10
+            self.score += 1
+            self.steps = 0
+            self.reward += 1
             self.food = self._generate_food()
         else:
             self.snake.pop()  # Mantener longitud si no comió
 
         # Pequeña penalización por paso para incentivar eficiencia
-        reward -= 0.01
+        self.score -= 0.01
 
-        return self.game_over, reward
+        return self.game_over, self.reward

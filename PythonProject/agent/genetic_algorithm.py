@@ -11,7 +11,9 @@ class GeneticAlgorithm:
         self.population = []
         self.generation = 0
         self.best_score = 0
+        self.best_score_gen = 0
         self.best_agent = None
+        self.best_agent_gen = None
         self.scores_history = []
 
         # Inicializar población
@@ -27,7 +29,7 @@ class GeneticAlgorithm:
     def evaluate_agent(self, agent: NeuralNetwork, num_games: int = 1) -> float:
         """Evalúa un agente jugando múltiples juegos y devuelve su puntuación promedio"""
         total_score = 0
-
+        total_steps = 0
         for _ in range(num_games):
             game = SnakeGame(Config.Config.BOARD_SIZE)
             state = game.get_state()
@@ -35,13 +37,18 @@ class GeneticAlgorithm:
 
             while not game_over:
                 action = agent.predict(state)
-                game_over, _ = game.move(action)
+                game_over, reward = game.move(action)
                 state = game.get_state()
-
+                total_steps += 1
             total_score += game.score
-
-        return total_score / num_games
-
+        # Fitness compuesto que considera:
+        # 1. Puntuación (lo más importante)
+        # 2. Eficiencia (puntos por paso)
+        avg_score = total_score / num_games
+        avg_steps = total_steps / num_games
+        efficiency = avg_score / (avg_steps + 1)  # +1 para evitar división por cero
+        fitness = (avg_score * 0.7) + (efficiency * 0.3)
+        return max(fitness, 0.01)  # Nunca devolver cero
     def evaluate_population(self):
         """Evalúa toda la población y actualiza las puntuaciones"""
         scores = []
@@ -51,11 +58,16 @@ class GeneticAlgorithm:
             scores.append(score)
 
             # Actualizar mejor agente si es necesario
+            if score > self.best_score_gen:
+                self.best_score_gen = score
+                self.best_agent_gen = agent
+
             if score > self.best_score:
                 self.best_score = score
                 self.best_agent = agent
                 if Config.Config.SAVE_BEST_AGENT:
                     self._save_best_agent()
+
 
         self.scores_history.append({
             'generation': self.generation,
@@ -130,8 +142,8 @@ class GeneticAlgorithm:
         selected = [agent for agent, _ in sorted_pop[:elite_size]]
 
         # Completar con selección por ruleta
-        remaining = self._roulette_selection(scores)
-        selected.extend(remaining[:len(self.population) - elite_size])
+        # remaining = self._roulette_selection(scores)
+        # selected.extend(remaining[:len(self.population) - elite_size])
 
         return selected
 
@@ -199,23 +211,14 @@ class GeneticAlgorithm:
         """Crea la siguiente generación a partir de los padres seleccionados"""
         next_generation = []
 
-        # Aplicar elitismo (si está configurado)
-        if Config.Config.SELECTION_METHOD == 'elite' and Config.Config.ELITISM_COUNT > 0:
-            sorted_selected = sorted(
-                [(agent, self.evaluate_agent(agent)) for agent in selected],
-                key=lambda x: x[1],
-                reverse=True
-            )
-            next_generation.extend([agent for agent, _ in sorted_selected[:Config.Config.ELITISM_COUNT]])
-
         # Cruzar y mutar para crear el resto de la población
         while len(next_generation) < Config.Config.POPULATION_SIZE:
             # Seleccionar dos padres aleatorios
+
             parent1, parent2 = random.sample(selected, 2)
-
-            if self.best_agent is not None and parent1 != self.best_agent:
-                parent1 = self.best_agent
-
+            if random.random() < 0.1:
+                parent1 = selected[0]
+                parent2 = self.best_agent
             # Cruzar
             child1, child2 = self.crossover(parent1, parent2)
 
