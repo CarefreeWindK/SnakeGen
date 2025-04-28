@@ -15,11 +15,11 @@ class Config:
 
     # Configuración del algoritmo genético
     POPULATION_SIZE = 400
-    GENERATIONS = 4000
+    GENERATIONS = 100
     MUTATION_RATE = 0.02
     MUTATION_STRENGTH = 0.5
     CROSSOVER_RATE = 0.5
-    SELECTION_METHOD = 'elite'  # 'tournament', 'roulette', or 'elite'
+    SELECTION_METHOD = 'roulette'  # 'tournament', 'roulette', or 'elite'
     TOURNAMENT_SIZE = 5
     ELITISM_COUNT = 4
 
